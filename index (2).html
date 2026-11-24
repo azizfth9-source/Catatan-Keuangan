@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#e6007e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Keuangan">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap">
+<title>Catatan Keuangan</title>
+<style>
+:root{--bg:#fbfafc;--cd:rgba(255,255,255,.72);--tx:#16141a;--mu:#85808f;--ac:#e6007e;--a2:#ff5aae;--ln:rgba(20,10,30,.09);--in:#0f9d58;--out:#e5334b}
+@media(prefers-color-scheme:dark){:root{--bg:#0e0c12;--cd:rgba(34,30,42,.72);--tx:#f5f3f8;--mu:#9c97a6;--ln:rgba(255,255,255,.1)}}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+body{font:15px/1.45 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding-top:env(safe-area-inset-top)}
+body:before{content:"";position:fixed;inset:-20% -30% auto auto;width:420px;height:420px;background:radial-gradient(circle,rgba(230,0,126,.16),transparent 70%);pointer-events:none}
+main{position:relative;padding:18px 16px 130px;max-width:560px;margin:auto}
+h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
+h3{font-size:15px;font-weight:700;margin-bottom:8px}
+.cd{background:var(--cd);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--ln);border-radius:22px;padding:16px;margin-bottom:14px}
+.hero{background:linear-gradient(140deg,#17101c 30%,#4a0b36 75%,var(--ac));color:#fff;border:0}
+.hero .mu{color:rgba(255,255,255,.7)}
+.big{font-size:32px;font-weight:800;letter-spacing:-.03em}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.g3 b{display:block;font-size:13px}
+.mu{color:var(--mu);font-size:12.5px}
+.in{color:var(--in)}.out{color:var(--out)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--ln);cursor:pointer}
+.row:last-child{border:0}
+.row b{font-weight:600}
+.donut{width:120px;height:120px;border-radius:50%;flex:none;-webkit-mask:radial-gradient(circle 36px,transparent 98%,#000 100%);mask:radial-gradient(circle 36px,transparent 98%,#000 100%)}
+.pie{display:flex;gap:16px;align-items:center}
+.lg{flex:1;font-size:13px}.lg div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.lg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+.kosong{text-align:center;color:var(--mu);padding:28px 10px}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:10px 26px calc(10px + env(safe-area-inset-bottom));background:var(--cd);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--ln)}
+.ib{width:48px;height:48px;border-radius:16px;border:1px solid var(--ln);background:var(--cd);color:var(--tx);font-size:20px}
+.fab{width:66px;height:66px;margin-top:-36px;border-radius:50%;border:0;color:#fff;font:800 19px 'Plus Jakarta Sans',system-ui;background:linear-gradient(135deg,var(--ac),var(--a2));box-shadow:0 8px 24px rgba(230,0,126,.45);transition:transform .15s}
+.fab:active{transform:scale(.92)}
+#ov{position:fixed;inset:0;background:rgba(10,5,15,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30}
+#ov.on{opacity:1;pointer-events:auto}
+#dr,#sheet{position:fixed;z-index:40;background:var(--bg);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+#dr{top:0;bottom:0;left:0;width:260px;padding:calc(24px + env(safe-area-inset-top)) 16px;transform:translateX(-105%)}
+#dr.on{transform:none}
+#dr button{display:block;width:100%;text-align:left;padding:14px;border:0;border-radius:14px;background:none;color:var(--tx);font:600 16px inherit}
+#dr button.a{background:var(--cd);color:var(--ac)}
+#sheet{left:0;right:0;bottom:0;max-height:92vh;overflow:auto;border-radius:26px 26px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));transform:translateY(105%);max-width:560px;margin:auto}
+#sheet.on{transform:none}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
+.seg button{padding:11px 4px;border-radius:14px;border:1px solid var(--ln);background:var(--cd);color:var(--tx);font:600 14px inherit}
+.seg button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+label{display:block;font-size:12.5px;color:var(--mu);margin:10px 0 4px}
+input,select{width:100%;padding:13px;border-radius:14px;border:1px solid var(--ln);background:var(--cd);color:var(--tx);font:inherit}
+input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
+.nom{font-size:28px;font-weight:800;letter-spacing:-.02em}
+.p{width:100%;margin-top:16px;padding:15px;border:0;border-radius:16px;background:linear-gradient(135deg,var(--ac),var(--a2));color:#fff;font:700 16px inherit}
+.d{width:100%;margin-top:8px;padding:12px;border:0;background:none;color:var(--out);font:600 14px inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+#login form{width:100%;max-width:360px}
+#ld{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;background:rgba(255,255,255,.35);backdrop-filter:blur(3px)}
+#ld.on{display:flex}
+#ld i{width:42px;height:42px;border-radius:50%;border:4px solid var(--ln);border-top-color:var(--ac);animation:s .7s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+#ts{position:fixed;left:50%;bottom:112px;transform:translate(-50%,20px);opacity:0;z-index:70;padding:12px 18px;border-radius:14px;color:#fff;font-weight:600;transition:.3s;pointer-events:none;max-width:90%;text-align:center}
+#ts.on{opacity:1;transform:translate(-50%,0)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:1s!important}}
+</style>
+</head>
+<body>
+<div id="login" hidden>
+  <form onsubmit="masuk(event)">
+    <h1 style="font-size:30px">Catatan<br>Keuangan</h1>
+    <p class="mu" style="margin-bottom:14px">Masuk untuk mencatat dan melihat keuanganmu.</p>
+    <label>Username</label><input id="lu" autocomplete="username" autocapitalize="none" required>
+    <label>Password</label><input id="lp" type="password" autocomplete="current-password" required>
+    <button class="p">Masuk</button>
+  </form>
+</div>
+<div id="app" hidden>
+  <main id="main"></main>
+  <nav>
+    <button class="ib" onclick="menu()" aria-label="Buka menu">☰</button>
+    <button class="fab" onclick="buka()" aria-label="Catat transaksi">Rp</button>
+    <button class="ib" onclick="keluar()" aria-label="Keluar">⏻</button>
+  </nav>
+</div>
+<div id="ov" onclick="tutup()"></div>
+<aside id="dr"></aside>
+<section id="sheet"></section>
+<div id="ld"><i></i></div>
+<div id="ts"></div>
+
+<script>
+const API = 'PASTE_URL_WEB_APP_DI_SINI';
+const $ = s => document.querySelector(s);
+let S = {}; try { S = JSON.parse(localStorage.getItem('ck') || '{}'); } catch (e) {}
+let D = { dompet: [], kategori: [], trx: [] }, V = 'beranda', F = { q: '', j: '', d: '', b: '' }, E = null, J = 'Pengeluaran';
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rp = n => (n < 0 ? '-' : '') + 'Rp ' + Math.round(Math.abs(n)).toLocaleString('id-ID');
+const pad = n => String(n).padStart(2, '0');
+const key = t => t.slice(6) + t.slice(3, 5) + t.slice(0, 2);
+const bk = t => t.slice(6) + t.slice(3, 5);
+const iso = t => t.slice(6) + '-' + t.slice(3, 5) + '-' + t.slice(0, 2);
+const dmy = i => i.slice(8) + '/' + i.slice(5, 7) + '/' + i.slice(0, 4);
+const urut = (a, b) => (key(b.tanggal) + b.waktu).localeCompare(key(a.tanggal) + a.waktu);
+const sum = a => a.reduce((x, t) => x + t.nominal, 0);
+const kosong = m => `<div class="kosong">${m}</div>`;
+
+function load(on) { $('#ld').classList.toggle('on', !!on); }
+function toast(m, ok) {
+  const t = $('#ts'); t.textContent = m; t.style.background = ok ? '#0f9d58' : '#e5334b';
+  t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600);
+}
+async function api(aksi, d, diam) {
+  if (!diam) load(1);
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ aksi, token: S.token }, d || {})) });
+    const j = await r.json();
+    if (!j.ok) { if (/sesi/i.test(j.pesan)) { S = {}; localStorage.removeItem('ck'); render(); } throw new Error(j.pesan); }
+    return j.data;
+  } catch (e) {
+    throw new Error(e instanceof TypeError ? 'Tidak ada koneksi. Periksa internet lalu coba lagi.' : e.message);
+  } finally { load(0); }
+}
+
+async function masuk(ev) {
+  ev.preventDefault();
+  try {
+    const r = await api('login', { username: $('#lu').value, password: $('#lp').value });
+    S = r; localStorage.setItem('ck', JSON.stringify(S)); $('#lp').value = '';
+    render(); muat();
+  } catch (e) { toast(e.message, 0); }
+}
+function keluar(paksa) {
+  if (!paksa && !confirm('Keluar dari aplikasi?')) return;
+  S = {}; localStorage.removeItem('ck'); tutup(); render();
+}
+async function muat() {
+  try { D = await api('muat'); render(); } catch (e) { toast(e.message, 0); }
+}
+
+function saldo() {
+  const s = {}; D.dompet.forEach(w => s[w.nama] = w.saldoAwal);
+  D.trx.forEach(t => {
+    if (!(t.dompet in s)) return;
+    if (t.jenis === 'Pemasukan') s[t.dompet] += t.nominal;
+    else if (t.jenis === 'Pengeluaran') s[t.dompet] -= t.nominal;
+    else { s[t.dompet] -= t.nominal; if (t.tujuan in s) s[t.tujuan] += t.nominal; }
+  });
+  return s;
+}
+
+const li = t => {
+  const tf = t.jenis === 'Transfer', c = tf ? '' : t.jenis === 'Pemasukan' ? 'in' : 'out';
+  return `<div class="row" onclick="buka('${esc(t.id)}')"><div><b>${esc(tf ? 'Transfer' : t.kategori || 'Tanpa kategori')}</b>
+  <div class="mu">${esc(t.catatan || (tf ? t.dompet + ' → ' + t.tujuan : t.dompet))} · ${t.tanggal.slice(0, 5)} · ${esc(t.pengguna)}</div></div>
+  <b class="${c}">${tf ? '' : t.jenis === 'Pemasukan' ? '+' : '-'}${rp(t.nominal)}</b></div>`;
+};
+
+function vBeranda() {
+  const s = saldo(), tot = Object.values(s).reduce((a, b) => a + b, 0), n = new Date(), k = '' + n.getFullYear() + pad(n.getMonth() + 1);
+  const b = D.trx.filter(t => bk(t.tanggal) === k);
+  const mas = sum(b.filter(t => t.jenis === 'Pemasukan')), kel = sum(b.filter(t => t.jenis === 'Pengeluaran')), sel = mas - kel;
+  const per = {}; b.filter(t => t.jenis === 'Pengeluaran').forEach(t => { const c = t.kategori || 'Lainnya'; per[c] = (per[c] || 0) + t.nominal; });
+  const ent = Object.entries(per).sort((a, b) => b[1] - a[1]), W = ['#e6007e', '#ff7ac0', '#7a1fa2', '#ffb3d9', '#c2185b', '#8e8e99', '#4a4a55', '#d81b9a'];
+  let a = 0; const grad = ent.map((e, i) => { const x = a / kel * 100; a += e[1]; return `${W[i % 8]} ${x}% ${a / kel * 100}%`; }).join(',');
+  const last = D.trx.slice().sort(urut).slice(0, 6);
+  return `<h1>Halo, ${esc(S.nama)}</h1>
+  <div class="cd hero"><div class="mu">Total saldo</div><div class="big">${rp(tot)}</div>
+   <div class="g3"><div><span class="mu">Masuk</span><b>${rp(mas)}</b></div><div><span class="mu">Keluar</span><b>${rp(kel)}</b></div><div><span class="mu">${sel < 0 ? 'Defisit' : 'Surplus'}</span><b>${rp(sel)}</b></div></div></div>
+  <div class="cd"><h3>Pengeluaran bulan ini</h3>${ent.length ? `<div class="pie"><div class="donut" style="background:conic-gradient(${grad})"></div>
+   <div class="lg">${ent.slice(0, 5).map((e, i) => `<div><span><i style="background:${W[i]}"></i>${esc(e[0])}</span><b>${Math.round(e[1] / kel * 100)}%</b></div>`).join('')}</div></div>` : kosong('Belum ada pengeluaran bulan ini.')}</div>
+  <div class="cd"><h3>Transaksi terakhir</h3>${last.length ? last.map(li).join('') : kosong('Belum ada transaksi.<br>Ketuk tombol Rp untuk mencatat.')}</div>`;
+}
+
+function listR() {
+  const q = F.q.toLowerCase();
+  const a = D.trx.filter(t => (!F.j || t.jenis === F.j) && (!F.d || t.dompet === F.d || t.tujuan === F.d) && (!F.b || bk(t.tanggal) === F.b.replace('-', '')) &&
+    (!q || (t.catatan + ' ' + t.kategori + ' ' + t.dompet + ' ' + t.pengguna).toLowerCase().includes(q))).sort(urut);
+  return a.length ? a.map(li).join('') : kosong('Tidak ada transaksi yang cocok.');
+}
+function vRiwayat() {
+  return `<h1>Riwayat</h1><div class="cd"><input placeholder="Cari catatan atau kategori" value="${esc(F.q)}" oninput="F.q=this.value;$('#lst').innerHTML=listR()">
+  <div class="two" style="margin-top:8px"><select onchange="F.j=this.value;$('#lst').innerHTML=listR()"><option value="">Semua jenis</option>${['Pemasukan', 'Pengeluaran', 'Transfer'].map(j => `<option ${F.j === j ? 'selected' : ''}>${j}</option>`).join('')}</select>
+  <select onchange="F.d=this.value;$('#lst').innerHTML=listR()"><option value="">Semua dompet</option>${D.dompet.map(w => `<option ${F.d === w.nama ? 'selected' : ''}>${esc(w.nama)}</option>`).join('')}</select></div>
+  <input type="month" style="margin-top:8px" value="${F.b}" onchange="F.b=this.value;$('#lst').innerHTML=listR()"></div>
+  <div class="cd" id="lst">${listR()}</div>`;
+}
+function vDompet() {
+  const s = saldo();
+  return `<h1>Dompet</h1><div class="cd">${D.dompet.length ? D.dompet.map(w => `<div class="row" style="cursor:default"><b>${esc(w.nama)}</b><b>${rp(s[w.nama])}</b></div>`).join('') : kosong('Belum ada dompet.')}</div>
+  <div class="cd"><h3>Tambah dompet</h3><label>Nama (mis. BCA, GoPay)</label><input id="wn" maxlength="30"><label>Saldo awal (Rp)</label><input id="ws" inputmode="numeric" oninput="fmtN(this)" placeholder="0"><button class="p" onclick="tbDompet()">Simpan dompet</button></div>`;
+}
+function vKategori() {
+  const g = j => D.kategori.filter(k => k.jenis === j).map(k => esc(k.nama)).join(', ') || '-';
+  return `<h1>Kategori</h1><div class="cd"><h3>Pengeluaran</h3><p class="mu">${g('Pengeluaran')}</p><h3 style="margin-top:12px">Pemasukan</h3><p class="mu">${g('Pemasukan')}</p></div>
+  <div class="cd"><h3>Tambah kategori</h3><label>Nama</label><input id="kn" maxlength="30"><label>Jenis</label><select id="kj"><option>Pengeluaran</option><option>Pemasukan</option></select><button class="p" onclick="tbKat()">Simpan kategori</button></div>`;
+}
+
+function render() {
+  $('#app').hidden = !S.token; $('#login').hidden = !!S.token;
+  if (!S.token) return;
+  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, dompet: vDompet, kategori: vKategori }[V]();
+}
+function menu() {
+  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
+  $('#dr').innerHTML = `<h1 style="margin-bottom:18px">Menu</h1>` + m.map(x => `<button class="${V === x[0] ? 'a' : ''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
+  $('#dr').classList.add('on'); $('#ov').classList.add('on');
+}
+function go(v) { V = v; tutup(); render(); scrollTo(0, 0); }
+function tutup() { ['#dr', '#sheet', '#ov'].forEach(s => $(s).classList.remove('on')); }
+
+function fmtN(el) { const d = el.value.replace(/\D/g, ''); el.value = d ? Number(d).toLocaleString('id-ID') : ''; }
+const num = id => parseInt($(id).value.replace(/\D/g, '')) || 0;
+
+function buka(id) {
+  if (!D.dompet.length) return toast('Tambah dompet dulu di menu Dompet.', 0);
+  E = id ? D.trx.find(t => t.id === id) : null; J = E ? E.jenis : 'Pengeluaran';
+  const n = new Date(), t = E || { nominal: '', kategori: '', dompet: D.dompet[0].nama, tujuan: '', catatan: '', tanggal: `${pad(n.getDate())}/${pad(n.getMonth() + 1)}/${n.getFullYear()}`, waktu: `${pad(n.getHours())}:${pad(n.getMinutes())}` };
+  const op = (a, v) => a.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join(''), dn = D.dompet.map(w => w.nama);
+  $('#sheet').innerHTML = `<h3>${E ? 'Ubah transaksi' : 'Catat transaksi'}</h3>
+  <div class="seg">${['Pengeluaran', 'Pemasukan', 'Transfer'].map(j => `<button data-j="${j}" onclick="jenis('${j}')">${j}</button>`).join('')}</div>
+  <label>Nominal</label><input id="fn" class="nom" inputmode="numeric" placeholder="0" oninput="fmtN(this)" value="${t.nominal ? Number(t.nominal).toLocaleString('id-ID') : ''}">
+  <div id="bk"><label>Kategori</label><select id="fk"></select></div>
+  <label id="ld1">Dompet</label><select id="fd">${op(dn, t.dompet)}</select>
+  <div id="bt"><label>Ke dompet</label><select id="ft">${op(dn, t.tujuan || dn.find(x => x !== t.dompet) || dn[0])}</select></div>
+  <div class="two"><div><label>Tanggal</label><input id="ftg" type="date" value="${iso(t.tanggal)}"></div><div><label>Jam</label><input id="fw" type="time" value="${t.waktu}"></div></div>
+  <label>Catatan</label><input id="fc" maxlength="200" placeholder="Opsional" value="${esc(t.catatan)}">
+  <button class="p" onclick="simpan()">Simpan</button>${E ? '<button class="d" onclick="hps()">Hapus transaksi</button>' : ''}`;
+  $('#sheet').dataset.k = t.kategori;
+  jenis(J); $('#sheet').classList.add('on'); $('#ov').classList.add('on');
+  if (!E) setTimeout(() => $('#fn').focus(), 320);
+}
+function jenis(j) {
+  J = j;
+  document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.j === j));
+  $('#bk').hidden = j === 'Transfer'; $('#bt').hidden = j !== 'Transfer';
+  $('#ld1').textContent = j === 'Transfer' ? 'Dari dompet' : 'Dompet';
+  const ks = D.kategori.filter(k => k.jenis === j), cur = $('#fk').value || $('#sheet').dataset.k;
+  $('#fk').innerHTML = ks.length ? ks.map(k => `<option ${k.nama === cur ? 'selected' : ''}>${esc(k.nama)}</option>`).join('') : '<option value="">(Belum ada kategori)</option>';
+}
+async function simpan() {
+  const nominal = num('#fn');
+  if (nominal <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
+  if (!$('#ftg').value) return toast('Tanggal wajib diisi.', 0);
+  const t = { id: E && E.id, jenis: J, nominal, kategori: J === 'Transfer' ? '' : $('#fk').value, dompet: $('#fd').value, tujuan: J === 'Transfer' ? $('#ft').value : '', tanggal: dmy($('#ftg').value), waktu: $('#fw').value, catatan: $('#fc').value.trim() };
+  if (J === 'Transfer' && t.tujuan === t.dompet) return toast('Dompet asal dan tujuan harus berbeda.', 0);
+  try { await api(E ? 'ubah' : 'tambah', { t }); tutup(); toast('Transaksi tersimpan', 1); await muat(); }
+  catch (e) { toast('Gagal menyimpan: ' + e.message, 0); }
+}
+async function hps() {
+  if (!confirm('Hapus transaksi ini?')) return;
+  try { await api('hapus', { id: E.id }); tutup(); toast('Transaksi dihapus', 1); await muat(); }
+  catch (e) { toast('Gagal menghapus: ' + e.message, 0); }
+}
+async function tbDompet() {
+  try { await api('tambahDompet', { nama: $('#wn').value, saldoAwal: num('#ws') }); toast('Dompet ditambahkan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+async function tbKat() {
+  try { await api('tambahKategori', { nama: $('#kn').value, jenis: $('#kj').value }); toast('Kategori ditambahkan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+render(); if (S.token) muat();
+</script>
+</body>
+</html>
