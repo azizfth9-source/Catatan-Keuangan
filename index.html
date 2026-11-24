@@ -44,7 +44,7 @@ nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-conte
 #ov{position:fixed;inset:0;background:rgba(10,5,15,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30}
 #ov.on{opacity:1;pointer-events:auto}
 #dr,#sheet{position:fixed;z-index:40;background:var(--bg);transition:transform .3s cubic-bezier(.2,.8,.2,1)}
-#dr{top:0;bottom:0;left:0;width:260px;padding:calc(24px + env(safe-area-inset-top)) 16px;transform:translateX(-105%)}
+#dr{overflow:auto;top:0;bottom:0;left:0;width:260px;padding:calc(24px + env(safe-area-inset-top)) 16px;transform:translateX(-105%)}
 #dr.on{transform:none}
 #dr button{display:block;width:100%;text-align:left;padding:14px;border:0;border-radius:14px;background:none;color:var(--tx);font:600 16px inherit}
 #dr button.a{background:var(--cd);color:var(--ac)}
@@ -99,7 +99,7 @@ input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
 const API = 'https://script.google.com/macros/s/AKfycbz8WBMyR7WXLBx5srKhxfDGvtGY2ROAo1WbG6QRyXLQ1BVhAYp-j7qOxvALLJhPjTwI5Q/exec';
 const $ = s => document.querySelector(s);
 let S = {}; try { S = JSON.parse(localStorage.getItem('ck') || '{}'); } catch (e) {}
-let D = { dompet: [], kategori: [], trx: [] }, V = 'beranda', F = { q: '', j: '', d: '', b: '' }, E = null, J = 'Pengeluaran';
+let D = { dompet: [], kategori: [], trx: [], anggaran: [], utang: [], target: [], berulang: [] }, V = 'beranda', F = { q: '', j: '', d: '', b: '' }, E = null, J = 'Pengeluaran';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const rp = n => (n < 0 ? '-' : '') + 'Rp ' + Math.round(Math.abs(n)).toLocaleString('id-ID');
@@ -142,7 +142,7 @@ function keluar(paksa) {
   S = {}; localStorage.removeItem('ck'); tutup(); render();
 }
 async function muat() {
-  try { D = await api('muat'); D.anggaran = D.anggaran || []; render(); } catch (e) { toast(e.message, 0); }
+  try { D = await api('muat'); ['anggaran', 'utang', 'target', 'berulang'].forEach(k => D[k] = D[k] || []); render(); } catch (e) { toast(e.message, 0); }
 }
 
 function saldo() {
@@ -170,11 +170,11 @@ function vBeranda() {
   const per = {}; b.filter(t => t.jenis === 'Pengeluaran').forEach(t => { const c = t.kategori || 'Lainnya'; per[c] = (per[c] || 0) + t.nominal; });
   const ent = Object.entries(per).sort((a, b) => b[1] - a[1]), W = ['#e6007e', '#ff7ac0', '#7a1fa2', '#ffb3d9', '#c2185b', '#8e8e99', '#4a4a55', '#d81b9a'];
   let a = 0; const grad = ent.map((e, i) => { const x = a / kel * 100; a += e[1]; return `${W[i % 8]} ${x}% ${a / kel * 100}%`; }).join(',');
-  const last = D.trx.slice().sort(urut).slice(0, 6), wr = D.anggaran.map(a => cekAng(a.kategori)).filter(Boolean);
+  const last = D.trx.slice().sort(urut).slice(0, 6), wr = D.anggaran.map(a => cekAng(a.kategori)).filter(Boolean).concat(pengingat());
   return `<h1>Halo, ${esc(S.nama)}</h1>
   <div class="cd hero"><div class="mu">Total saldo</div><div class="big">${rp(tot)}</div>
    <div class="g3"><div><span class="mu">Masuk</span><b>${rp(mas)}</b></div><div><span class="mu">Keluar</span><b>${rp(kel)}</b></div><div><span class="mu">${sel < 0 ? 'Defisit' : 'Surplus'}</span><b>${rp(sel)}</b></div></div></div>
-  ${wr.length ? `<div class="cd" style="border-color:#f5a524"><h3>Peringatan anggaran</h3>${wr.map(x => `<div style="padding:2px 0">• ${esc(x)}</div>`).join('')}</div>` : ''}
+  ${wr.length ? `<div class="cd" style="border-color:#f5a524"><h3>Pengingat dan peringatan</h3>${wr.map(x => `<div style="padding:2px 0">• ${esc(x)}</div>`).join('')}</div>` : ''}
   <div class="cd"><h3>Pengeluaran bulan ini</h3>${ent.length ? `<div class="pie"><div class="donut" style="background:conic-gradient(${grad})"></div>
    <div class="lg">${ent.slice(0, 5).map((e, i) => `<div><span><i style="background:${W[i]}"></i>${esc(e[0])}</span><b>${Math.round(e[1] / kel * 100)}%</b></div>`).join('')}</div></div>` : kosong('Belum ada pengeluaran bulan ini.')}</div>
   <div class="cd"><h3>Transaksi terakhir</h3>${last.length ? last.map(li).join('') : kosong('Belum ada transaksi.<br>Ketuk tombol Rp untuk mencatat.')}</div>`;
@@ -242,6 +242,132 @@ async function hpsAng(i) {
   catch (e) { toast(e.message, 0); }
 }
 
+function bukaSheet(h) { $('#sheet').innerHTML = h; $('#sheet').classList.add('on'); $('#ov').classList.add('on'); }
+const hariSel = s => Math.round((dt(s) - new Date(new Date().setHours(0, 0, 0, 0))) / 864e5);
+function pengingat() {
+  return D.utang.filter(x => x.status !== 'Lunas' && x.jatuh && hariSel(x.jatuh) <= 3).map(x => {
+    const h = hariSel(x.jatuh), w = h < 0 ? `terlambat ${-h} hari` : h === 0 ? 'jatuh tempo hari ini' : `jatuh tempo ${h} hari lagi`;
+    return `${x.jenis} ${x.pihak} (${rp(x.nominal - x.terbayar)}) ${w}`;
+  });
+}
+
+/* ----- Utang Piutang ----- */
+function vUtang() {
+  const aktif = D.utang.filter(x => x.status !== 'Lunas'), lunas = D.utang.filter(x => x.status === 'Lunas');
+  const ts = j => aktif.filter(x => x.jenis === j).reduce((a, x) => a + x.nominal - x.terbayar, 0);
+  const item = x => {
+    const i = D.utang.indexOf(x), sisa = x.nominal - x.terbayar, p = Math.round(x.terbayar / x.nominal * 100), h = x.jatuh ? hariSel(x.jatuh) : null;
+    const jt = h === null ? '' : h < 0 ? `<span class="out">Terlambat ${-h} hari</span>` : `Jatuh tempo ${x.jatuh}${h <= 3 ? ` (${h === 0 ? 'hari ini' : h + ' hari lagi'})` : ''}`;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--ln)"><div style="display:flex;justify-content:space-between"><b>${esc(x.pihak)} <span class="mu">· ${x.jenis}</span></b><b class="${x.jenis === 'Utang' ? 'out' : 'in'}">${rp(sisa)}</b></div>
+    <div class="bar"><i style="width:${p}%;background:var(--ac)"></i></div><div class="mu">${rp(x.terbayar)} dari ${rp(x.nominal)}${jt ? ' · ' + jt : ''}${x.catatan ? '<br>' + esc(x.catatan) : ''}</div>
+    <button class="xs" style="color:var(--ac)" onclick="bayarU(${i})">${x.jenis === 'Utang' ? 'Bayar cicilan' : 'Terima cicilan'}</button><button class="xs" onclick="hpsU(${i})">Hapus</button></div>`;
+  };
+  return `<h1>Utang Piutang</h1><div class="cd"><div class="g3" style="grid-template-columns:1fr 1fr;margin:0"><div><span class="mu">Utang saya</span><b class="out" style="font-size:18px">${rp(ts('Utang'))}</b></div><div><span class="mu">Piutang (orang ke saya)</span><b class="in" style="font-size:18px">${rp(ts('Piutang'))}</b></div></div></div>
+  <div class="cd"><h3>Belum lunas</h3>${aktif.length ? aktif.map(item).join('') : kosong('Tidak ada utang atau piutang aktif.')}</div>
+  ${lunas.length ? `<div class="cd"><h3>Lunas</h3>${lunas.map(x => `<div class="row" style="cursor:default"><span>${esc(x.pihak)} <span class="mu">· ${x.jenis}</span></span><span class="mu">${rp(x.nominal)}</span></div>`).join('')}</div>` : ''}
+  <div class="cd"><h3>Tambah catatan</h3><label>Jenis</label><select id="uj"><option value="Utang">Utang (saya berutang)</option><option value="Piutang">Piutang (orang berutang ke saya)</option></select>
+  <label>Nama pihak</label><input id="up" maxlength="40"><label>Nominal (Rp)</label><input id="un" inputmode="numeric" oninput="fmtN(this)" placeholder="0">
+  <label>Jatuh tempo (opsional)</label><input id="ut" type="date"><label>Catatan (opsional)</label><input id="uc" maxlength="150"><button class="p" onclick="tbU()">Simpan</button></div>`;
+}
+async function tbU() {
+  const nominal = num('#un');
+  if (!$('#up').value.trim()) return toast('Nama pihak wajib diisi.', 0);
+  if (nominal <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
+  try { await api('tambahUtang', { jenis: $('#uj').value, pihak: $('#up').value, nominal, jatuh: $('#ut').value ? dmy($('#ut').value) : '', catatan: $('#uc').value }); toast('Tersimpan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+function bayarU(i) {
+  const x = D.utang[i], sisa = x.nominal - x.terbayar;
+  bukaSheet(`<h3>${x.jenis === 'Utang' ? 'Bayar cicilan' : 'Terima cicilan'}: ${esc(x.pihak)}</h3><p class="mu">Sisa ${rp(sisa)}</p>
+  <label>Nominal</label><input id="bn" class="nom" inputmode="numeric" oninput="fmtN(this)" value="${sisa.toLocaleString('id-ID')}">
+  <label>Catat ke dompet (otomatis jadi transaksi)</label><select id="bd"><option value="">(Jangan catat di dompet)</option>${D.dompet.map(w => `<option>${esc(w.nama)}</option>`).join('')}</select>
+  <button class="p" onclick="kirimU('${esc(x.id)}',${sisa})">Simpan</button>`);
+}
+async function kirimU(id, sisa) {
+  const n = num('#bn');
+  if (n <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
+  if (n > sisa) return toast('Nominal melebihi sisa.', 0);
+  try { await api('bayarUtang', { id, nominal: n, dompet: $('#bd').value }); tutup(); toast('Pembayaran tercatat', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+async function hpsU(i) {
+  if (!confirm(`Hapus catatan "${D.utang[i].pihak}"?`)) return;
+  try { await api('hapusUtang', { id: D.utang[i].id }); toast('Dihapus', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+
+/* ----- Target Tabungan ----- */
+function vTarget() {
+  const item = (x, i) => {
+    const p = Math.round(x.terkumpul / x.target * 100), h = x.tenggat ? hariSel(x.tenggat) : null, sisa = Math.max(0, x.target - x.terkumpul), bln = h === null ? 1 : Math.max(1, Math.ceil(h / 30));
+    const info = h === null ? '' : h < 0 ? ' · <span class="out">tenggat lewat</span>' : ` · tenggat ${x.tenggat}${sisa > 0 ? ` · butuh ± ${rp(Math.ceil(sisa / bln))}/bulan` : ''}`;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--ln)"><div style="display:flex;justify-content:space-between"><b>${esc(x.nama)}</b><span class="mu">${Math.min(p, 100)}%${x.status === 'Tercapai' ? ' ✓' : ''}</span></div>
+    <div class="bar"><i style="width:${Math.min(p, 100)}%;background:var(--ac)"></i></div><div class="mu">${rp(x.terkumpul)} dari ${rp(x.target)}${info}</div>
+    <button class="xs" style="color:var(--ac)" onclick="alokT(${i},1)">Setor</button><button class="xs" style="color:var(--ac)" onclick="alokT(${i},-1)">Tarik</button><button class="xs" onclick="hpsT(${i})">Hapus</button></div>`;
+  };
+  return `<h1>Target Tabungan</h1><div class="cd">${D.target.length ? D.target.map(item).join('') : kosong('Belum ada target.<br>Buat target pertamamu di bawah.')}
+  <p class="mu" style="margin-top:8px">Setoran hanya mencatat alokasi dana ke target. Saldo dompet tidak berubah.</p></div>
+  <div class="cd"><h3>Buat target</h3><label>Nama target (mis. Dana Darurat)</label><input id="tn" maxlength="40"><label>Target nominal (Rp)</label><input id="tt" inputmode="numeric" oninput="fmtN(this)" placeholder="0">
+  <label>Tenggat (opsional)</label><input id="td" type="date"><button class="p" onclick="tbT()">Simpan target</button></div>`;
+}
+async function tbT() {
+  const target = num('#tt');
+  if (!$('#tn').value.trim()) return toast('Nama target wajib diisi.', 0);
+  if (target <= 0) return toast('Target nominal tidak boleh kosong atau nol.', 0);
+  try { await api('tambahTarget', { nama: $('#tn').value, target, tenggat: $('#td').value ? dmy($('#td').value) : '' }); toast('Target dibuat', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+function alokT(i, arah) {
+  const x = D.target[i];
+  bukaSheet(`<h3>${arah > 0 ? 'Setor ke' : 'Tarik dari'} ${esc(x.nama)}</h3><p class="mu">Terkumpul ${rp(x.terkumpul)} dari ${rp(x.target)}</p>
+  <label>Nominal</label><input id="an" class="nom" inputmode="numeric" oninput="fmtN(this)" placeholder="0"><button class="p" onclick="kirimT('${esc(x.id)}',${arah})">Simpan</button>`);
+  setTimeout(() => $('#an').focus(), 320);
+}
+async function kirimT(id, arah) {
+  const n = num('#an');
+  if (n <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
+  try { await api('alokasiTarget', { id, delta: arah * n }); tutup(); toast('Tersimpan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+async function hpsT(i) {
+  if (!confirm(`Hapus target "${D.target[i].nama}"?`)) return;
+  try { await api('hapusTarget', { id: D.target[i].id }); toast('Target dihapus', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+
+/* ----- Transaksi Berulang ----- */
+function vBerulang() {
+  const op = D.dompet.map(w => `<option>${esc(w.nama)}</option>`).join('');
+  return `<h1>Transaksi Berulang</h1><div class="cd">${D.berulang.length ? D.berulang.map((x, i) => `<div class="row" style="cursor:default;align-items:center"><div><b>${esc(x.kategori || 'Transfer')}${x.catatan ? ' · ' + esc(x.catatan) : ''}</b>
+  <div class="mu">Tiap tanggal ${x.hari} · ${x.jenis} · ${esc(x.dompet)}${x.tujuan ? ' → ' + esc(x.tujuan) : ''}</div></div><div style="text-align:right"><b>${rp(x.nominal)}</b><br><button class="xs" onclick="hpsB(${i})">Hapus</button></div></div>`).join('') : kosong('Belum ada transaksi berulang.')}</div>
+  <div class="cd"><h3>Tambah transaksi berulang</h3><label>Jenis</label><select id="bj" onchange="brJ()"><option>Pengeluaran</option><option>Pemasukan</option><option>Transfer</option></select>
+  <div id="bkk"><label>Kategori</label><select id="bk2"></select></div><label>Dompet</label><select id="bdm">${op}</select>
+  <div id="btj" hidden><label>Ke dompet</label><select id="bdt">${op}</select></div>
+  <label>Nominal (Rp)</label><input id="bnm" inputmode="numeric" oninput="fmtN(this)" placeholder="0">
+  <label>Tiap tanggal</label><select id="bh">${Array.from({ length: 28 }, (_, i) => `<option>${i + 1}</option>`).join('')}</select>
+  <label>Catatan (mis. Langganan Netflix)</label><input id="bc" maxlength="100"><button class="p" onclick="tbB()">Simpan</button>
+  <p class="mu" style="margin-top:8px">Dicatat otomatis pada tanggalnya, saat aplikasi dibuka pada atau setelah tanggal itu. Maksimal tanggal 28 agar berlaku di semua bulan.</p></div>`;
+}
+function brJ() {
+  const j = $('#bj').value;
+  $('#bkk').hidden = j === 'Transfer'; $('#btj').hidden = j !== 'Transfer';
+  $('#bk2').innerHTML = D.kategori.filter(k => k.jenis === j).map(k => `<option>${esc(k.nama)}</option>`).join('');
+}
+async function tbB() {
+  const nominal = num('#bnm'), j = $('#bj').value;
+  if (nominal <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
+  if (!D.dompet.length) return toast('Tambah dompet dulu di menu Dompet.', 0);
+  const t = { jenis: j, nominal, kategori: j === 'Transfer' ? '' : $('#bk2').value, dompet: $('#bdm').value, tujuan: j === 'Transfer' ? $('#bdt').value : '', catatan: $('#bc').value.trim() };
+  if (j === 'Transfer' && t.tujuan === t.dompet) return toast('Dompet asal dan tujuan harus berbeda.', 0);
+  try { await api('tambahBerulang', { t, hari: +$('#bh').value }); toast('Transaksi berulang tersimpan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+async function hpsB(i) {
+  if (!confirm('Hentikan dan hapus transaksi berulang ini? Transaksi yang sudah tercatat tetap ada.')) return;
+  try { await api('hapusBerulang', { id: D.berulang[i].id }); toast('Dihapus', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+
 let LP = 'bulan';
 const dt = t => new Date(+t.slice(6), +t.slice(3, 5) - 1, +t.slice(0, 2));
 function periode(p) {
@@ -279,10 +405,10 @@ function ekspor() {
 function render() {
   $('#app').hidden = !S.token; $('#login').hidden = !!S.token;
   if (!S.token) return;
-  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, anggaran: vAnggaran, laporan: vLaporan, dompet: vDompet, kategori: vKategori }[V]();
+  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, anggaran: vAnggaran, laporan: vLaporan, utang: vUtang, target: vTarget, berulang: vBerulang, dompet: vDompet, kategori: vKategori }[V](); if (V === 'berulang') brJ();
 }
 function menu() {
-  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['anggaran', 'Anggaran'], ['laporan', 'Laporan'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
+  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['anggaran', 'Anggaran'], ['laporan', 'Laporan'], ['utang', 'Utang Piutang'], ['target', 'Target Tabungan'], ['berulang', 'Berulang'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
   $('#dr').innerHTML = `<h1 style="margin-bottom:18px">Menu</h1>` + m.map(x => `<button class="${V === x[0] ? 'a' : ''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
   $('#dr').classList.add('on'); $('#ov').classList.add('on');
 }
