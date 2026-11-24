@@ -12,8 +12,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap">
 <title>Catatan Keuangan</title>
 <style>
-:root{--bg:#fbfafc;--cd:rgba(255,255,255,.72);--tx:#16141a;--mu:#85808f;--ac:#e6007e;--a2:#ff5aae;--ln:rgba(20,10,30,.09);--in:#0f9d58;--out:#e5334b}
-@media(prefers-color-scheme:dark){:root{--bg:#0e0c12;--cd:rgba(34,30,42,.72);--tx:#f5f3f8;--mu:#9c97a6;--ln:rgba(255,255,255,.1)}}
+:root{--bg:#fbfafc;--cd:rgba(255,255,255,.72);--tx:#16141a;--mu:#85808f;--ac:#e6007e;--a2:#ff5aae;--ln:rgba(20,10,30,.09);--in:#0f9d58;--out:#e5334b;--pw:#000}
+@media(prefers-color-scheme:dark){:root{--bg:#0e0c12;--cd:rgba(34,30,42,.72);--tx:#f5f3f8;--mu:#9c97a6;--ln:rgba(255,255,255,.1);--pw:#fff}}
 *{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 body{font:15px/1.45 'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;padding-top:env(safe-area-inset-top)}
@@ -37,8 +37,8 @@ h3{font-size:15px;font-weight:700;margin-bottom:8px}
 .lg{flex:1;font-size:13px}.lg div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .lg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
 .kosong{text-align:center;color:var(--mu);padding:28px 10px}
-nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:10px 26px calc(10px + env(safe-area-inset-bottom));background:var(--cd);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--ln)}
-.ib{width:48px;height:48px;border-radius:16px;border:1px solid var(--ln);background:var(--cd);color:var(--tx);font-size:20px}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:10px 6px calc(10px + env(safe-area-inset-bottom));background:var(--cd);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--ln)}
+.ib{width:48px;height:48px;border:0;background:none;color:var(--tx);display:flex;align-items:center;justify-content:center}.ib svg{width:26px;height:26px}.ib.pw{color:var(--pw)}.xs{border:0;background:none;color:var(--out);font:600 14px inherit;padding:8px}
 .fab{width:66px;height:66px;margin-top:-36px;border-radius:50%;border:0;color:#fff;font:800 19px 'Plus Jakarta Sans',system-ui;background:linear-gradient(135deg,var(--ac),var(--a2));box-shadow:0 8px 24px rgba(230,0,126,.45);transition:transform .15s}
 .fab:active{transform:scale(.92)}
 #ov{position:fixed;inset:0;background:rgba(10,5,15,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30}
@@ -84,9 +84,9 @@ input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
 <div id="app" hidden>
   <main id="main"></main>
   <nav>
-    <button class="ib" onclick="menu()" aria-label="Buka menu">☰</button>
+    <button class="ib" onclick="menu()" aria-label="Buka menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <button class="fab" onclick="buka()" aria-label="Catat transaksi">Rp</button>
-    <button class="ib" onclick="keluar()" aria-label="Keluar">⏻</button>
+    <button class="ib pw" onclick="keluar()" aria-label="Keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8M6.4 6.8a8 8 0 1 0 11.2 0"/></svg></button>
   </nav>
 </div>
 <div id="ov" onclick="tutup()"></div>
@@ -194,7 +194,7 @@ function vRiwayat() {
 }
 function vDompet() {
   const s = saldo();
-  return `<h1>Dompet</h1><div class="cd">${D.dompet.length ? D.dompet.map(w => `<div class="row" style="cursor:default"><b>${esc(w.nama)}</b><b>${rp(s[w.nama])}</b></div>`).join('') : kosong('Belum ada dompet.')}</div>
+  return `<h1>Dompet</h1><div class="cd">${D.dompet.length ? D.dompet.map((w, i) => `<div class="row" style="cursor:default;align-items:center"><div><b>${esc(w.nama)}</b><div class="mu">${rp(s[w.nama])}</div></div>${S.peran === 'admin' ? `<button class="xs" onclick="hpsD(${i})">Hapus</button>` : ''}</div>`).join('') : kosong('Belum ada dompet.')}</div>
   <div class="cd"><h3>Tambah dompet</h3><label>Nama (mis. BCA, GoPay)</label><input id="wn" maxlength="30"><label>Saldo awal (Rp)</label><input id="ws" inputmode="numeric" oninput="fmtN(this)" placeholder="0"><button class="p" onclick="tbDompet()">Simpan dompet</button></div>`;
 }
 function vKategori() {
@@ -230,7 +230,6 @@ function buka(id) {
   <div id="bk"><label>Kategori</label><select id="fk"></select></div>
   <label id="ld1">Dompet</label><select id="fd">${op(dn, t.dompet)}</select>
   <div id="bt"><label>Ke dompet</label><select id="ft">${op(dn, t.tujuan || dn.find(x => x !== t.dompet) || dn[0])}</select></div>
-  <div class="two"><div><label>Tanggal</label><input id="ftg" type="date" value="${iso(t.tanggal)}"></div><div><label>Jam</label><input id="fw" type="time" value="${t.waktu}"></div></div>
   <label>Catatan</label><input id="fc" maxlength="200" placeholder="Opsional" value="${esc(t.catatan)}">
   <button class="p" onclick="simpan()">Simpan</button>${E ? '<button class="d" onclick="hps()">Hapus transaksi</button>' : ''}`;
   $('#sheet').dataset.k = t.kategori;
@@ -248,8 +247,8 @@ function jenis(j) {
 async function simpan() {
   const nominal = num('#fn');
   if (nominal <= 0) return toast('Nominal tidak boleh kosong atau nol.', 0);
-  if (!$('#ftg').value) return toast('Tanggal wajib diisi.', 0);
-  const t = { id: E && E.id, jenis: J, nominal, kategori: J === 'Transfer' ? '' : $('#fk').value, dompet: $('#fd').value, tujuan: J === 'Transfer' ? $('#ft').value : '', tanggal: dmy($('#ftg').value), waktu: $('#fw').value, catatan: $('#fc').value.trim() };
+  const n = new Date(), tg = E ? { tanggal: E.tanggal, waktu: E.waktu } : { tanggal: `${pad(n.getDate())}/${pad(n.getMonth() + 1)}/${n.getFullYear()}`, waktu: `${pad(n.getHours())}:${pad(n.getMinutes())}` };
+  const t = { id: E && E.id, jenis: J, nominal, kategori: J === 'Transfer' ? '' : $('#fk').value, dompet: $('#fd').value, tujuan: J === 'Transfer' ? $('#ft').value : '', tanggal: tg.tanggal, waktu: tg.waktu, catatan: $('#fc').value.trim() };
   if (J === 'Transfer' && t.tujuan === t.dompet) return toast('Dompet asal dan tujuan harus berbeda.', 0);
   try { await api(E ? 'ubah' : 'tambah', { t }); tutup(); toast('Transaksi tersimpan', 1); await muat(); }
   catch (e) { toast('Gagal menyimpan: ' + e.message, 0); }
@@ -257,6 +256,12 @@ async function simpan() {
 async function hps() {
   if (!confirm('Hapus transaksi ini?')) return;
   try { await api('hapus', { id: E.id }); tutup(); toast('Transaksi dihapus', 1); await muat(); }
+  catch (e) { toast('Gagal menghapus: ' + e.message, 0); }
+}
+async function hpsD(i) {
+  const w = D.dompet[i], sd = saldo()[w.nama] || 0;
+  if (!confirm(`Hapus dompet "${w.nama}"?` + (sd !== 0 ? `\n\nSaldonya masih ${rp(sd)} dan akan hilang dari total saldo.` : '') + '\nRiwayat transaksinya tetap tersimpan.')) return;
+  try { await api('hapusDompet', { nama: w.nama }); toast('Dompet dihapus', 1); await muat(); }
   catch (e) { toast('Gagal menghapus: ' + e.message, 0); }
 }
 async function tbDompet() {
