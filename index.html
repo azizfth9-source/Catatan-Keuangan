@@ -66,7 +66,8 @@ input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
 #ld.on{display:flex}
 #ld i{width:42px;height:42px;border-radius:50%;border:4px solid var(--ln);border-top-color:var(--ac);animation:s .7s linear infinite}
 @keyframes s{to{transform:rotate(360deg)}}
-#ts{position:fixed;left:50%;bottom:112px;transform:translate(-50%,20px);opacity:0;z-index:70;padding:12px 18px;border-radius:14px;color:#fff;font-weight:600;transition:.3s;pointer-events:none;max-width:90%;text-align:center}
+#lock{position:fixed;inset:0;z-index:80;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}.lk{width:100%;max-width:320px;text-align:center}#lkd{display:flex;gap:14px;justify-content:center;margin:20px 0 28px}#lkd i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ac)}#lkd i.on{background:var(--ac)}#lkp{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}#lkp button{height:64px;border-radius:50%;border:1px solid var(--ln);background:var(--cd);color:var(--tx);font:600 22px inherit}#lkp button:active{background:var(--ac);color:#fff}
+#ts{position:fixed;left:50%;bottom:112px;transform:translate(-50%,20px);opacity:0;z-index:90;padding:12px 18px;border-radius:14px;color:#fff;font-weight:600;transition:.3s;pointer-events:none;max-width:90%;text-align:center}
 #ts.on{opacity:1;transform:translate(-50%,0)}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:1s!important}}
 </style>
@@ -89,17 +90,19 @@ input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
     <button class="ib pw" onclick="keluar()" aria-label="Keluar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 3v8M6.4 6.8a8 8 0 1 0 11.2 0"/></svg></button>
   </nav>
 </div>
+<div id="lock" hidden><div class="lk"><h2 id="lkj" style="font-size:22px"></h2><p class="mu" id="lks"></p><div id="lkd"><i></i><i></i><i></i><i></i><i></i><i></i></div><div id="lkp"></div><button class="xs" id="lkb" style="color:var(--mu);margin-top:14px"></button></div></div>
 <div id="ov" onclick="tutup()"></div>
 <aside id="dr"></aside>
 <section id="sheet"></section>
 <div id="ld"><i></i></div>
 <div id="ts"></div>
 
+<script src="config.js"></script>
 <script>
-const API = 'https://script.google.com/macros/s/AKfycbz8WBMyR7WXLBx5srKhxfDGvtGY2ROAo1WbG6QRyXLQ1BVhAYp-j7qOxvALLJhPjTwI5Q/exec';
+const API = typeof API_URL === 'undefined' ? '' : API_URL;
 const $ = s => document.querySelector(s);
 let S = {}; try { S = JSON.parse(localStorage.getItem('ck') || '{}'); } catch (e) {}
-let D = { dompet: [], kategori: [], trx: [], anggaran: [], utang: [], target: [], berulang: [] }, V = 'beranda', F = { q: '', j: '', d: '', b: '' }, E = null, J = 'Pengeluaran';
+let dimuat = false, D = { dompet: [], kategori: [], trx: [], anggaran: [], utang: [], target: [], berulang: [] }, V = 'beranda', F = { q: '', j: '', d: '', b: '' }, E = null, J = 'Pengeluaran';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const rp = n => (n < 0 ? '-' : '') + 'Rp ' + Math.round(Math.abs(n)).toLocaleString('id-ID');
@@ -118,6 +121,7 @@ function toast(m, ok) {
   t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600);
 }
 async function api(aksi, d, diam) {
+  if (!API || /PASTE_URL/.test(API)) throw new Error('Alamat Web app belum diisi di config.js');
   if (!diam) load(1);
   try {
     const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ aksi, token: S.token }, d || {})) });
@@ -139,10 +143,10 @@ async function masuk(ev) {
 }
 function keluar(paksa) {
   if (!paksa && !confirm('Keluar dari aplikasi?')) return;
-  S = {}; localStorage.removeItem('ck'); tutup(); render();
+  S = {}; localStorage.removeItem('ck'); localStorage.removeItem('ckpin'); tutup(); render();
 }
 async function muat() {
-  try { D = await api('muat'); ['anggaran', 'utang', 'target', 'berulang'].forEach(k => D[k] = D[k] || []); render(); } catch (e) { toast(e.message, 0); }
+  try { D = await api('muat'); dimuat = true; ['anggaran', 'utang', 'target', 'berulang'].forEach(k => D[k] = D[k] || []); render(); } catch (e) { toast(e.message, 0); }
 }
 
 function saldo() {
@@ -174,6 +178,7 @@ function vBeranda() {
   return `<h1>Halo, ${esc(S.nama)}</h1>
   <div class="cd hero"><div class="mu">Total saldo</div><div class="big">${rp(tot)}</div>
    <div class="g3"><div><span class="mu">Masuk</span><b>${rp(mas)}</b></div><div><span class="mu">Keluar</span><b>${rp(kel)}</b></div><div><span class="mu">${sel < 0 ? 'Defisit' : 'Surplus'}</span><b>${rp(sel)}</b></div></div></div>
+  ${perluCatat() ? `<div class="cd" style="border-color:var(--ac)"><h3>Sudah catat hari ini?</h3><div class="mu">Belum ada transaksi atas namamu hari ini. Ketuk tombol Rp untuk mencatat.</div></div>` : ''}
   ${wr.length ? `<div class="cd" style="border-color:#f5a524"><h3>Pengingat dan peringatan</h3>${wr.map(x => `<div style="padding:2px 0">• ${esc(x)}</div>`).join('')}</div>` : ''}
   <div class="cd"><h3>Pengeluaran bulan ini</h3>${ent.length ? `<div class="pie"><div class="donut" style="background:conic-gradient(${grad})"></div>
    <div class="lg">${ent.slice(0, 5).map((e, i) => `<div><span><i style="background:${W[i]}"></i>${esc(e[0])}</span><b>${Math.round(e[1] / kel * 100)}%</b></div>`).join('')}</div></div>` : kosong('Belum ada pengeluaran bulan ini.')}</div>
@@ -405,10 +410,10 @@ function ekspor() {
 function render() {
   $('#app').hidden = !S.token; $('#login').hidden = !!S.token;
   if (!S.token) return;
-  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, anggaran: vAnggaran, laporan: vLaporan, utang: vUtang, target: vTarget, berulang: vBerulang, dompet: vDompet, kategori: vKategori }[V](); if (V === 'berulang') brJ();
+  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, anggaran: vAnggaran, laporan: vLaporan, utang: vUtang, target: vTarget, berulang: vBerulang, dompet: vDompet, kategori: vKategori, pengaturan: vPengaturan }[V](); if (V === 'berulang') brJ();
 }
 function menu() {
-  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['anggaran', 'Anggaran'], ['laporan', 'Laporan'], ['utang', 'Utang Piutang'], ['target', 'Target Tabungan'], ['berulang', 'Berulang'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
+  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['anggaran', 'Anggaran'], ['laporan', 'Laporan'], ['utang', 'Utang Piutang'], ['target', 'Target Tabungan'], ['berulang', 'Berulang'], ['dompet', 'Dompet'], ['kategori', 'Kategori'], ['pengaturan', 'Pengaturan']];
   $('#dr').innerHTML = `<h1 style="margin-bottom:18px">Menu</h1>` + m.map(x => `<button class="${V === x[0] ? 'a' : ''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
   $('#dr').classList.add('on'); $('#ov').classList.add('on');
 }
@@ -472,7 +477,84 @@ async function tbKat() {
   catch (e) { toast(e.message, 0); }
 }
 
+/* ----- Kunci PIN ----- */
+let lk = '', lkTmp = '', lkMode = 'buka', salah = 0, hiddenAt = 0;
+const LJ = { buka: ['Masukkan PIN', 'Aplikasi terkunci'], baru: ['Buat PIN baru', 'Pilih 6 angka'], ulang: ['Ulangi PIN', 'Masukkan PIN yang sama'], lama: ['PIN lama', 'Masukkan PIN saat ini'], matikan: ['Matikan PIN', 'Masukkan PIN saat ini'] };
+const hx = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+const hPin = async (p, salt) => hx(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + p)));
+function kunci(mode) { tutup(); lkMode = mode; lk = ''; lkTmp = ''; $('#lock').hidden = false; judulLock(); dots(); }
+function judulLock() {
+  $('#lkj').textContent = LJ[lkMode][0]; $('#lks').textContent = LJ[lkMode][1];
+  const b = $('#lkb'); b.textContent = lkMode === 'buka' ? 'Lupa PIN? Keluar' : 'Batal'; b.onclick = lkMode === 'buka' ? lupaPin : tutupLock;
+}
+function dots() { document.querySelectorAll('#lkd i').forEach((e, i) => e.classList.toggle('on', i < lk.length)); }
+function tutupLock() { $('#lock').hidden = true; lk = ''; lkTmp = ''; salah = 0; if (V === 'pengaturan') render(); }
+function lupaPin() { if (confirm('Keluar dan hapus PIN? Kamu perlu masuk lagi dengan username dan password.')) { keluar(true); tutupLock(); } }
+function tekan(d) {
+  if (d === 'x') lk = lk.slice(0, -1); else if (lk.length < 6) lk += d;
+  dots(); if (lk.length === 6) setTimeout(selesaiPin, 120);
+}
+async function selesaiPin() {
+  const p = lk; lk = '';
+  if (lkMode === 'baru') { lkTmp = p; lkMode = 'ulang'; }
+  else if (lkMode === 'ulang') {
+    if (p !== lkTmp) { lkMode = 'baru'; lkTmp = ''; toast('PIN tidak sama, ulangi dari awal.', 0); }
+    else { const salt = crypto.randomUUID(); localStorage.setItem('ckpin', salt + ':' + await hPin(p, salt)); tutupLock(); toast('PIN aktif', 1); return; }
+  } else {
+    const q = (localStorage.getItem('ckpin') || ':').split(':');
+    if (await hPin(p, q[0]) === q[1]) {
+      salah = 0;
+      if (lkMode === 'buka') { tutupLock(); return; }
+      if (lkMode === 'lama') lkMode = 'baru';
+      else { localStorage.removeItem('ckpin'); tutupLock(); toast('PIN dimatikan', 1); return; }
+    } else {
+      salah++;
+      if (salah >= 5) { toast('Terlalu banyak salah. Silakan masuk lagi.', 0); keluar(true); tutupLock(); return; }
+      toast(`PIN salah (${salah}/5)`, 0);
+    }
+  }
+  judulLock(); dots();
+}
+function initPad() {
+  $('#lkp').innerHTML = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'x'].map(k => k === '' ? '<span></span>' : `<button onclick="tekan('${k}')" aria-label="${k === 'x' ? 'Hapus' : k}">${k === 'x' ? '←' : k}</button>`).join('');
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (S.token && localStorage.getItem('ckpin') && $('#lock').hidden && Date.now() - hiddenAt > 60000) kunci('buka');
+});
+
+/* ----- Pengaturan dan pengingat harian ----- */
+function perluCatat() {
+  if (!dimuat || localStorage.getItem('ckremoff')) return false;
+  const n = new Date(), q = (localStorage.getItem('ckrem') || '20:00').split(':').map(Number);
+  if (n.getHours() * 60 + n.getMinutes() < q[0] * 60 + q[1]) return false;
+  const td = `${pad(n.getDate())}/${pad(n.getMonth() + 1)}/${n.getFullYear()}`;
+  return !D.trx.some(t => t.tanggal === td && t.pengguna === S.nama);
+}
+function vPengaturan() {
+  const ada = !!localStorage.getItem('ckpin'), rj = localStorage.getItem('ckrem') || '20:00';
+  return `<h1>Pengaturan</h1><div class="cd"><h3>Kunci aplikasi (PIN)</h3><p class="mu">${ada ? 'PIN aktif. Aplikasi terkunci lagi bila ditinggalkan lebih dari 1 menit.' : 'Lindungi aplikasi dengan PIN 6 angka.'}</p>
+  ${ada ? `<button class="p" onclick="kunci('lama')">Ubah PIN</button><button class="d" onclick="kunci('matikan')">Matikan PIN</button>` : `<button class="p" onclick="kunci('baru')">Aktifkan PIN</button>`}</div>
+  <div class="cd"><h3>Pengingat harian</h3><label>Jam pengingat</label><input type="time" id="rj" value="${rj}" onchange="localStorage.setItem('ckrem',this.value)">
+  <label style="display:flex;gap:10px;align-items:center;margin-top:12px"><input type="checkbox" style="width:auto" ${localStorage.getItem('ckremoff') ? '' : 'checked'} onchange="this.checked?localStorage.removeItem('ckremoff'):localStorage.setItem('ckremoff','1')"> Tampilkan pengingat di Beranda</label>
+  <button class="p" onclick="tambahKal()">Tambahkan alarm harian ke kalender HP</button>
+  <p class="mu" style="margin-top:8px">Alarm kalender berbunyi tiap hari pada jam di atas, walau aplikasi tertutup.</p></div>
+  <div class="cd"><h3>Akun</h3><p class="mu">Masuk sebagai ${esc(S.nama)} (${esc(S.peran)})</p></div>`;
+}
+function tambahKal() {
+  const j = ($('#rj').value || '20:00').replace(':', ''), n = new Date(Date.now() + 864e5), d = '' + n.getFullYear() + pad(n.getMonth() + 1) + pad(n.getDate());
+  const u = location.href.split('#')[0].replace(/index\.html$/, '');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Catatan Keuangan//ID', 'BEGIN:VEVENT', 'UID:catatan-keuangan-harian@local',
+    'DTSTAMP:' + new Date().toISOString().replace(/[-:]|\.\d{3}/g, ''), 'DTSTART:' + d + 'T' + j + '00', 'DURATION:PT15M', 'RRULE:FREQ=DAILY',
+    'SUMMARY:Catat pengeluaran hari ini', 'DESCRIPTION:Buka Catatan Keuangan: ' + u, 'URL:' + u,
+    'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', 'DESCRIPTION:Catat pengeluaran hari ini', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const f = new File([ics], 'pengingat-keuangan.ics', { type: 'text/calendar' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: 'Pengingat harian' }).catch(() => {}); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click();
+}
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+initPad(); if (S.token && localStorage.getItem('ckpin')) kunci('buka');
 render(); if (S.token) muat();
 </script>
 </body>
