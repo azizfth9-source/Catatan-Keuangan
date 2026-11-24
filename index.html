@@ -38,7 +38,7 @@ h3{font-size:15px;font-weight:700;margin-bottom:8px}
 .lg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
 .kosong{text-align:center;color:var(--mu);padding:28px 10px}
 nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:10px 6px calc(10px + env(safe-area-inset-bottom));background:var(--cd);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid var(--ln)}
-.ib{width:48px;height:48px;border:0;background:none;color:var(--tx);display:flex;align-items:center;justify-content:center}.ib svg{width:26px;height:26px}.ib.pw{color:var(--pw)}.xs{border:0;background:none;color:var(--out);font:600 14px inherit;padding:8px}
+.ib{width:48px;height:48px;border:0;background:none;color:var(--tx);display:flex;align-items:center;justify-content:center}.ib svg{width:26px;height:26px}.ib.pw{color:var(--pw)}.bar{height:10px;border-radius:6px;background:var(--ln);overflow:hidden;margin:8px 0 4px}.bar i{display:block;height:100%;border-radius:6px;transition:width .4s}.xs{border:0;background:none;color:var(--out);font:600 14px inherit;padding:8px}
 .fab{width:66px;height:66px;margin-top:-36px;border-radius:50%;border:0;color:#fff;font:800 19px 'Plus Jakarta Sans',system-ui;background:linear-gradient(135deg,var(--ac),var(--a2));box-shadow:0 8px 24px rgba(230,0,126,.45);transition:transform .15s}
 .fab:active{transform:scale(.92)}
 #ov{position:fixed;inset:0;background:rgba(10,5,15,.5);opacity:0;pointer-events:none;transition:opacity .25s;z-index:30}
@@ -142,7 +142,7 @@ function keluar(paksa) {
   S = {}; localStorage.removeItem('ck'); tutup(); render();
 }
 async function muat() {
-  try { D = await api('muat'); render(); } catch (e) { toast(e.message, 0); }
+  try { D = await api('muat'); D.anggaran = D.anggaran || []; render(); } catch (e) { toast(e.message, 0); }
 }
 
 function saldo() {
@@ -170,10 +170,11 @@ function vBeranda() {
   const per = {}; b.filter(t => t.jenis === 'Pengeluaran').forEach(t => { const c = t.kategori || 'Lainnya'; per[c] = (per[c] || 0) + t.nominal; });
   const ent = Object.entries(per).sort((a, b) => b[1] - a[1]), W = ['#e6007e', '#ff7ac0', '#7a1fa2', '#ffb3d9', '#c2185b', '#8e8e99', '#4a4a55', '#d81b9a'];
   let a = 0; const grad = ent.map((e, i) => { const x = a / kel * 100; a += e[1]; return `${W[i % 8]} ${x}% ${a / kel * 100}%`; }).join(',');
-  const last = D.trx.slice().sort(urut).slice(0, 6);
+  const last = D.trx.slice().sort(urut).slice(0, 6), wr = D.anggaran.map(a => cekAng(a.kategori)).filter(Boolean);
   return `<h1>Halo, ${esc(S.nama)}</h1>
   <div class="cd hero"><div class="mu">Total saldo</div><div class="big">${rp(tot)}</div>
    <div class="g3"><div><span class="mu">Masuk</span><b>${rp(mas)}</b></div><div><span class="mu">Keluar</span><b>${rp(kel)}</b></div><div><span class="mu">${sel < 0 ? 'Defisit' : 'Surplus'}</span><b>${rp(sel)}</b></div></div></div>
+  ${wr.length ? `<div class="cd" style="border-color:#f5a524"><h3>Peringatan anggaran</h3>${wr.map(x => `<div style="padding:2px 0">• ${esc(x)}</div>`).join('')}</div>` : ''}
   <div class="cd"><h3>Pengeluaran bulan ini</h3>${ent.length ? `<div class="pie"><div class="donut" style="background:conic-gradient(${grad})"></div>
    <div class="lg">${ent.slice(0, 5).map((e, i) => `<div><span><i style="background:${W[i]}"></i>${esc(e[0])}</span><b>${Math.round(e[1] / kel * 100)}%</b></div>`).join('')}</div></div>` : kosong('Belum ada pengeluaran bulan ini.')}</div>
   <div class="cd"><h3>Transaksi terakhir</h3>${last.length ? last.map(li).join('') : kosong('Belum ada transaksi.<br>Ketuk tombol Rp untuk mencatat.')}</div>`;
@@ -203,13 +204,85 @@ function vKategori() {
   <div class="cd"><h3>Tambah kategori</h3><label>Nama</label><input id="kn" maxlength="30"><label>Jenis</label><select id="kj"><option>Pengeluaran</option><option>Pemasukan</option></select><button class="p" onclick="tbKat()">Simpan kategori</button></div>`;
 }
 
+const bulanIni = () => { const n = new Date(); return '' + n.getFullYear() + pad(n.getMonth() + 1); };
+function terpakai() {
+  const o = {};
+  D.trx.filter(t => t.jenis === 'Pengeluaran' && bk(t.tanggal) === bulanIni()).forEach(t => o[t.kategori] = (o[t.kategori] || 0) + t.nominal);
+  return o;
+}
+function cekAng(k) {
+  const a = D.anggaran.find(x => x.kategori === k);
+  if (!a) return '';
+  const p = Math.round((terpakai()[k] || 0) / a.batas * 100);
+  return p >= 100 ? `Anggaran ${k} sudah terlampaui (${p}%)` : p >= 80 ? `Anggaran ${k} hampir habis (${p}%)` : '';
+}
+function vAnggaran() {
+  const u = terpakai(), adm = S.peran === 'admin', ks = D.kategori.filter(k => k.jenis === 'Pengeluaran');
+  const item = (a, i) => {
+    const pk = u[a.kategori] || 0, p = Math.round(pk / a.batas * 100), c = p >= 100 ? '#e5334b' : p >= 80 ? '#f5a524' : '#0f9d58', sisa = a.batas - pk;
+    return `<div style="padding:10px 0"><div style="display:flex;justify-content:space-between"><b>${esc(a.kategori)}</b><span class="mu">${p}%</span></div>
+    <div class="bar"><i style="width:${Math.min(p, 100)}%;background:${c}"></i></div>
+    <div class="mu" style="display:flex;justify-content:space-between"><span>${rp(pk)} dari ${rp(a.batas)}</span><span>${sisa >= 0 ? 'Sisa ' + rp(sisa) : 'Lebih ' + rp(-sisa)}</span></div>
+    ${adm ? `<button class="xs" style="color:var(--ac)" onclick="edAng(${i})">Ubah</button><button class="xs" onclick="hpsAng(${i})">Hapus</button>` : ''}</div>`;
+  };
+  return `<h1>Anggaran</h1><div class="cd"><h3>Bulan ini</h3>${D.anggaran.length ? D.anggaran.map(item).join('') : kosong('Belum ada anggaran.<br>' + (adm ? 'Atur batas bulanan di bawah.' : 'Minta admin mengaturnya.'))}</div>
+  ${adm ? `<div class="cd"><h3>Atur anggaran</h3><label>Kategori</label><select id="ak">${ks.map(k => `<option>${esc(k.nama)}</option>`).join('')}</select>
+  <label>Batas per bulan (Rp)</label><input id="ab" inputmode="numeric" oninput="fmtN(this)" placeholder="0"><button class="p" onclick="simpanAng()">Simpan anggaran</button></div>` : ''}`;
+}
+function edAng(i) { $('#ak').value = D.anggaran[i].kategori; $('#ab').value = Number(D.anggaran[i].batas).toLocaleString('id-ID'); $('#ab').scrollIntoView({ block: 'center' }); $('#ab').focus(); }
+async function simpanAng() {
+  const batas = num('#ab');
+  if (batas <= 0) return toast('Batas harus lebih dari 0.', 0);
+  try { await api('setAnggaran', { kategori: $('#ak').value, batas }); toast('Anggaran tersimpan', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+async function hpsAng(i) {
+  if (!confirm(`Hapus anggaran "${D.anggaran[i].kategori}"?`)) return;
+  try { await api('setAnggaran', { kategori: D.anggaran[i].kategori, batas: 0 }); toast('Anggaran dihapus', 1); await muat(); }
+  catch (e) { toast(e.message, 0); }
+}
+
+let LP = 'bulan';
+const dt = t => new Date(+t.slice(6), +t.slice(3, 5) - 1, +t.slice(0, 2));
+function periode(p) {
+  const n = new Date(), a = [];
+  if (p === 'bulan') for (let i = 5; i >= 0; i--) { const m = new Date(n.getFullYear(), n.getMonth() - i, 1); a.push({ l: m.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }), s: m, e: new Date(m.getFullYear(), m.getMonth() + 1, 1) }); }
+  else if (p === 'minggu') { const sn = new Date(n.getFullYear(), n.getMonth(), n.getDate() - (n.getDay() + 6) % 7); for (let i = 7; i >= 0; i--) { const s = new Date(sn.getFullYear(), sn.getMonth(), sn.getDate() - 7 * i); a.push({ l: pad(s.getDate()) + '/' + pad(s.getMonth() + 1), s, e: new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7) }); } }
+  else for (let i = 2; i >= 0; i--) { const y = n.getFullYear() - i; a.push({ l: '' + y, s: new Date(y, 0, 1), e: new Date(y + 1, 0, 1) }); }
+  return a;
+}
+function vLaporan() {
+  const ps = periode(LP).map(p => {
+    const x = D.trx.filter(t => t.jenis !== 'Transfer' && dt(t.tanggal) >= p.s && dt(t.tanggal) < p.e);
+    return Object.assign(p, { x, m: sum(x.filter(t => t.jenis === 'Pemasukan')), k: sum(x.filter(t => t.jenis === 'Pengeluaran')) });
+  });
+  const mx = Math.max(1, ...ps.map(p => Math.max(p.m, p.k))), cur = ps[ps.length - 1], per = {};
+  cur.x.filter(t => t.jenis === 'Pengeluaran').forEach(t => { const c = t.kategori || 'Lainnya'; per[c] = (per[c] || 0) + t.nominal; });
+  const ent = Object.entries(per).sort((a, b) => b[1] - a[1]), nm = { bulan: 'Bulanan', minggu: 'Mingguan', tahun: 'Tahunan' };
+  return `<h1>Laporan</h1><div class="seg">${['minggu', 'bulan', 'tahun'].map(p => `<button class="${LP === p ? 'on' : ''}" onclick="LP='${p}';render()">${nm[p]}</button>`).join('')}</div>
+  <div class="cd"><h3>Arus kas: masuk vs keluar</h3>${D.trx.length ? ps.slice().reverse().map(p => `<div style="padding:8px 0"><div style="display:flex;justify-content:space-between"><b>${p.l}</b><b class="${p.m - p.k >= 0 ? 'in' : 'out'}">${rp(p.m - p.k)}</b></div>
+   <div class="bar" style="height:8px"><i style="width:${p.m / mx * 100}%;background:var(--in)"></i></div><div class="bar" style="height:8px;margin-top:4px"><i style="width:${p.k / mx * 100}%;background:var(--out)"></i></div>
+   <div class="mu" style="display:flex;justify-content:space-between"><span>Masuk ${rp(p.m)}</span><span>Keluar ${rp(p.k)}</span></div></div>`).join('') : kosong('Belum ada data.')}</div>
+  <div class="cd"><h3>Pengeluaran per kategori (${cur.l}, terbaru)</h3>${ent.length ? ent.map(e => `<div style="padding:6px 0"><div style="display:flex;justify-content:space-between"><span>${esc(e[0])}</span><b>${rp(e[1])}</b></div><div class="bar" style="height:7px"><i style="width:${e[1] / ent[0][1] * 100}%;background:var(--ac)"></i></div></div>`).join('') : kosong('Belum ada pengeluaran di periode ini.')}</div>
+  <button class="p" onclick="ekspor()">Ekspor semua transaksi (CSV)</button>`;
+}
+function ekspor() {
+  if (!D.trx.length) return toast('Belum ada transaksi untuk diekspor.', 0);
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const h = ['Tanggal', 'Waktu', 'Jenis', 'Kategori', 'Dompet', 'Dompet Tujuan', 'Nominal', 'Catatan', 'Pengguna'];
+  const b = D.trx.slice().sort(urut).map(t => [t.tanggal, t.waktu, t.jenis, t.kategori, t.dompet, t.tujuan, t.nominal, t.catatan, t.pengguna].map(q).join(';'));
+  const f = new File(['\ufeff' + [h.map(q).join(';')].concat(b).join('\r\n')], 'transaksi.csv', { type: 'text/csv' });
+  if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: 'Transaksi' }).catch(() => {}); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = 'transaksi.csv'; a.click();
+}
+
 function render() {
   $('#app').hidden = !S.token; $('#login').hidden = !!S.token;
   if (!S.token) return;
-  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, dompet: vDompet, kategori: vKategori }[V]();
+  $('#main').innerHTML = { beranda: vBeranda, riwayat: vRiwayat, anggaran: vAnggaran, laporan: vLaporan, dompet: vDompet, kategori: vKategori }[V]();
 }
 function menu() {
-  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
+  const m = [['beranda', 'Beranda'], ['riwayat', 'Riwayat'], ['anggaran', 'Anggaran'], ['laporan', 'Laporan'], ['dompet', 'Dompet'], ['kategori', 'Kategori']];
   $('#dr').innerHTML = `<h1 style="margin-bottom:18px">Menu</h1>` + m.map(x => `<button class="${V === x[0] ? 'a' : ''}" onclick="go('${x[0]}')">${x[1]}</button>`).join('');
   $('#dr').classList.add('on'); $('#ov').classList.add('on');
 }
@@ -250,7 +323,7 @@ async function simpan() {
   const n = new Date(), tg = E ? { tanggal: E.tanggal, waktu: E.waktu } : { tanggal: `${pad(n.getDate())}/${pad(n.getMonth() + 1)}/${n.getFullYear()}`, waktu: `${pad(n.getHours())}:${pad(n.getMinutes())}` };
   const t = { id: E && E.id, jenis: J, nominal, kategori: J === 'Transfer' ? '' : $('#fk').value, dompet: $('#fd').value, tujuan: J === 'Transfer' ? $('#ft').value : '', tanggal: tg.tanggal, waktu: tg.waktu, catatan: $('#fc').value.trim() };
   if (J === 'Transfer' && t.tujuan === t.dompet) return toast('Dompet asal dan tujuan harus berbeda.', 0);
-  try { await api(E ? 'ubah' : 'tambah', { t }); tutup(); toast('Transaksi tersimpan', 1); await muat(); }
+  try { await api(E ? 'ubah' : 'tambah', { t }); tutup(); await muat(); const w = J === 'Pengeluaran' ? cekAng(t.kategori) : ''; toast(w || 'Transaksi tersimpan', !w); }
   catch (e) { toast('Gagal menyimpan: ' + e.message, 0); }
 }
 async function hps() {
