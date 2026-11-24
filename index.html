@@ -143,7 +143,7 @@ async function masuk(ev) {
 }
 function keluar(paksa) {
   if (!paksa && !confirm('Keluar dari aplikasi?')) return;
-  S = {}; localStorage.removeItem('ck'); localStorage.removeItem('ckpin'); tutup(); render();
+  S = {}; localStorage.removeItem('ck'); tutup(); render();
 }
 async function muat() {
   try { D = await api('muat'); dimuat = true; ['anggaran', 'utang', 'target', 'berulang'].forEach(k => D[k] = D[k] || []); render(); } catch (e) { toast(e.message, 0); }
@@ -489,7 +489,7 @@ function judulLock() {
 }
 function dots() { document.querySelectorAll('#lkd i').forEach((e, i) => e.classList.toggle('on', i < lk.length)); }
 function tutupLock() { $('#lock').hidden = true; lk = ''; lkTmp = ''; salah = 0; if (V === 'pengaturan') render(); }
-function lupaPin() { if (confirm('Keluar dan hapus PIN? Kamu perlu masuk lagi dengan username dan password.')) { keluar(true); tutupLock(); } }
+function lupaPin() { if (confirm('Keluar dan hapus PIN? Kamu perlu masuk lagi dengan username dan password.')) { localStorage.removeItem('ckpin'); keluar(true); tutupLock(); } }
 function tekan(d) {
   if (d === 'x') lk = lk.slice(0, -1); else if (lk.length < 6) lk += d;
   dots(); if (lk.length === 6) setTimeout(selesaiPin, 120);
@@ -535,11 +535,15 @@ function vPengaturan() {
   const ada = !!localStorage.getItem('ckpin'), rj = localStorage.getItem('ckrem') || '20:00';
   return `<h1>Pengaturan</h1><div class="cd"><h3>Kunci aplikasi (PIN)</h3><p class="mu">${ada ? 'PIN aktif. Aplikasi terkunci lagi bila ditinggalkan lebih dari 1 menit.' : 'Lindungi aplikasi dengan PIN 6 angka.'}</p>
   ${ada ? `<button class="p" onclick="kunci('lama')">Ubah PIN</button><button class="d" onclick="kunci('matikan')">Matikan PIN</button>` : `<button class="p" onclick="kunci('baru')">Aktifkan PIN</button>`}</div>
-  <div class="cd"><h3>Pengingat harian</h3><label>Jam pengingat</label><input type="time" id="rj" value="${rj}" onchange="localStorage.setItem('ckrem',this.value)">
+  <div class="cd"><h3>Pengingat harian</h3><p class="mu">Kartu pengingat muncul di Beranda setelah jam ini, bila belum ada transaksi atas namamu hari ini.</p><label>Jam pengingat</label><input type="time" id="rj" value="${rj}" onchange="localStorage.setItem('ckrem',this.value)">
   <label style="display:flex;gap:10px;align-items:center;margin-top:12px"><input type="checkbox" style="width:auto" ${localStorage.getItem('ckremoff') ? '' : 'checked'} onchange="this.checked?localStorage.removeItem('ckremoff'):localStorage.setItem('ckremoff','1')"> Tampilkan pengingat di Beranda</label>
   <button class="p" onclick="tambahKal()">Tambahkan alarm harian ke kalender HP</button>
-  <p class="mu" style="margin-top:8px">Alarm kalender berbunyi tiap hari pada jam di atas, walau aplikasi tertutup.</p></div>
+  <p class="mu" style="margin-top:8px">Alarm kalender berbunyi tiap hari pada jam di atas, walau aplikasi tertutup.</p>${S.peran === 'admin' ? `<button class="p" style="background:var(--cd);color:var(--ac);border:1px solid var(--ln)" onclick="ujiEmail()">Kirim email pengingat (uji)</button><p class="mu" style="margin-top:8px">Email pengingat otomatis dikirim server tiap malam bila belum ada transaksi hari itu. Cara mengaktifkan ada di PANDUAN.md.</p>` : ''}</div>
   <div class="cd"><h3>Akun</h3><p class="mu">Masuk sebagai ${esc(S.nama)} (${esc(S.peran)})</p></div>`;
+}
+async function ujiEmail() {
+  try { const r = await api('ujiPengingat'); toast('Email uji terkirim ke ' + r, 1); }
+  catch (e) { toast(e.message, 0); }
 }
 function tambahKal() {
   const j = ($('#rj').value || '20:00').replace(':', ''), n = new Date(Date.now() + 864e5), d = '' + n.getFullYear() + pad(n.getMonth() + 1) + pad(n.getDate());
