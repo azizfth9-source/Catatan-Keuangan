@@ -80,6 +80,7 @@ input:focus,select:focus{outline:2px solid var(--ac);outline-offset:0}
     <label>Username</label><input id="lu" autocomplete="username" autocapitalize="none" required>
     <label>Password</label><input id="lp" type="password" autocomplete="current-password" required>
     <button class="p">Masuk</button>
+    <button type="button" id="ins" class="xs" style="color:var(--ac);display:none;width:100%;margin-top:6px" onclick="pasang()">Pasang aplikasi di HP</button>
   </form>
 </div>
 <div id="app" hidden>
@@ -523,6 +524,15 @@ document.addEventListener('visibilitychange', () => {
   else if (S.token && localStorage.getItem('ckpin') && $('#lock').hidden && Date.now() - hiddenAt > 60000) kunci('buka');
 });
 
+/* ----- Pasang aplikasi (PWA) ----- */
+let dip = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); dip = e; const b = $('#ins'); if (b) b.style.display = 'block'; });
+window.addEventListener('appinstalled', () => { dip = null; toast('Aplikasi terpasang', 1); });
+async function pasang() {
+  if (!dip) return toast('Buka menu titik tiga Chrome, lalu pilih "Install app" atau "Tambahkan ke layar utama".', 0);
+  dip.prompt(); await dip.userChoice; dip = null;
+}
+
 /* ----- Pengaturan dan pengingat harian ----- */
 function perluCatat() {
   if (!dimuat || localStorage.getItem('ckremoff')) return false;
@@ -539,6 +549,7 @@ function vPengaturan() {
   <label style="display:flex;gap:10px;align-items:center;margin-top:12px"><input type="checkbox" style="width:auto" ${localStorage.getItem('ckremoff') ? '' : 'checked'} onchange="this.checked?localStorage.removeItem('ckremoff'):localStorage.setItem('ckremoff','1')"> Tampilkan pengingat di Beranda</label>
   <button class="p" onclick="tambahKal()">Tambahkan alarm harian ke kalender HP</button>
   <p class="mu" style="margin-top:8px">Alarm kalender berbunyi tiap hari pada jam di atas, walau aplikasi tertutup.</p>${S.peran === 'admin' ? `<button class="p" style="background:var(--cd);color:var(--ac);border:1px solid var(--ln)" onclick="ujiEmail()">Kirim email pengingat (uji)</button><p class="mu" style="margin-top:8px">Email pengingat otomatis dikirim server tiap malam bila belum ada transaksi hari itu. Cara mengaktifkan ada di PANDUAN.md.</p>` : ''}</div>
+  ${(matchMedia('(display-mode: standalone)').matches || navigator.standalone) ? '' : `<div class="cd"><h3>Pasang di layar utama</h3><p class="mu">Android: ketuk tombol di bawah, atau menu titik tiga Chrome lalu Install app. iPhone: Safari, ikon Bagikan, Tambah ke Layar Utama.</p><button class="p" onclick="pasang()">Pasang di layar utama</button></div>`}
   <div class="cd"><h3>Akun</h3><p class="mu">Masuk sebagai ${esc(S.nama)} (${esc(S.peran)})</p></div>`;
 }
 async function ujiEmail() {
